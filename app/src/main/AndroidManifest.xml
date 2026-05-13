@@ -10,12 +10,12 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.NutriVibe">
+        android:theme="@style/Theme.UnitBvFMI2026">
         <activity
-            android:name=".MainActivity"
+            android:name="com.unitbv.fmi.fitnessapp.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.NutriVibe">
+            android:theme="@style/Theme.UnitBvFMI2026">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

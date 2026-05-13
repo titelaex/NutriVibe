@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="red">Rosu</string>
+    <string name="yellow">Galben</string>
+    <string name="green">Verde</string>
+</resources>

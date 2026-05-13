@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "498869637308",
+    "project_id": "nutrivibe-81d0c",
+    "storage_bucket": "nutrivibe-81d0c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:498869637308:android:2c89042fada1ba51b340b9",
+        "android_client_info": {
+          "package_name": "com.unitbv.fmi.fitnessapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8BiZxE-Yu1jiCIdGhVZejytNjdSWc6lc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
