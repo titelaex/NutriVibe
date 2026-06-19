@@ -321,8 +321,8 @@ fun OnboardingScreen(onFinish: () -> Unit) {
         
         Button(
             onClick = {
-                val h = height.toFloatOrNull() ?: 170f
-                val w = weight.toFloatOrNull() ?: 70f
+                val h = height.replace(',', '.').toFloatOrNull() ?: 170f
+                val w = weight.replace(',', '.').toFloatOrNull() ?: 70f
                 val a = age.toIntOrNull() ?: 25
                 val wPerWeek = workoutsPerWeek.toIntOrNull() ?: 0
                 
@@ -332,9 +332,14 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     childhoodBody = childhoodBody
                 )
                 
+                val displayName = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.displayName ?: ""
+                val names = displayName.split(" ")
+                val fName = names.getOrNull(0) ?: ""
+                val lName = names.drop(1).joinToString(" ")
+                
                 var stats = UserStats(
-                    firstName = "", 
-                    lastName = "",
+                    firstName = fName, 
+                    lastName = lName,
                     age = a,
                     gender = gender,
                     height = h,

@@ -37,126 +37,150 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
     val auth = FirebaseAuth.getInstance()
     val scrollState = rememberScrollState()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = if (isRegisterMode) "Creare Cont" else "Bine ai revenit",
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.headlineLarge
-        )
-        Text(
-            text = if (isRegisterMode) "Introdu datele pentru înregistrare" else "Pagina de Autentificare",
-            color = MaterialTheme.colorScheme.secondary,
-            style = MaterialTheme.typography.headlineSmall
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-
-        if (errorMessage != null) {
-            Text(text = errorMessage!!, color = Color.Red, style = MaterialTheme.typography.bodySmall)
-            Spacer(modifier = Modifier.height(8.dp))
+    LaunchedEffect(Unit) {
+        if (auth.currentUser != null) {
+            isLoading = true
+            try {
+                val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
+                if (profile != null) {
+                    onLoginSuccess(false) // Go to Dashboard
+                } else {
+                    onLoginSuccess(true)  // Go to Onboarding
+                }
+            } catch (e: Exception) {
+                onLoginSuccess(false)
+            } finally {
+                isLoading = false
+            }
         }
+    }
 
-        if (isRegisterMode) {
+    if (isLoading && auth.currentUser != null && email.isEmpty() && password.isEmpty()) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = if (isRegisterMode) "Creare Cont" else "Bine ai revenit",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.headlineLarge
+            )
+            Text(
+                text = if (isRegisterMode) "Introdu datele pentru înregistrare" else "Pagina de Autentificare",
+                color = MaterialTheme.colorScheme.secondary,
+                style = MaterialTheme.typography.headlineSmall
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+
+            if (errorMessage != null) {
+                Text(text = errorMessage!!, color = Color.Red, style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            if (isRegisterMode) {
+                OutlinedTextField(
+                    value = firstName,
+                    onValueChange = { firstName = it },
+                    label = { Text("Prenume") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    enabled = !isLoading
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = lastName,
+                    onValueChange = { lastName = it },
+                    label = { Text("Nume") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    enabled = !isLoading
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             OutlinedTextField(
-                value = firstName,
-                onValueChange = { firstName = it },
-                label = { Text("Prenume") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
                 enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = lastName,
-                onValueChange = { lastName = it },
-                label = { Text("Nume") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Parolă") },
+                visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done
+                ),
                 enabled = !isLoading
             )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            enabled = !isLoading
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Parolă") },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
-            ),
-            enabled = !isLoading
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Button(
-            onClick = {
-                scope.launch {
-                    isLoading = true
-                    errorMessage = null
-                    try {
-                        if (isRegisterMode) {
-                            val result = auth.createUserWithEmailAndPassword(email, password).await()
-                            val profileUpdates = UserProfileChangeRequest.Builder()
-                                .setDisplayName("$firstName $lastName")
-                                .build()
-                            result.user?.updateProfile(profileUpdates)?.await()
-                        } else {
-                            auth.signInWithEmailAndPassword(email, password).await()
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Button(
+                onClick = {
+                    scope.launch {
+                        isLoading = true
+                        errorMessage = null
+                        try {
+                            if (isRegisterMode) {
+                                val result = auth.createUserWithEmailAndPassword(email, password).await()
+                                val profileUpdates = UserProfileChangeRequest.Builder()
+                                    .setDisplayName("$firstName $lastName")
+                                    .build()
+                                result.user?.updateProfile(profileUpdates)?.await()
+                            } else {
+                                auth.signInWithEmailAndPassword(email, password).await()
+                            }
+                            onLoginSuccess(isRegisterMode)
+                        } catch (e: Exception) {
+                            errorMessage = e.localizedMessage ?: "A apărut o eroare"
+                        } finally {
+                            isLoading = false
                         }
-                        onLoginSuccess(isRegisterMode)
-                    } catch (e: Exception) {
-                        errorMessage = e.localizedMessage ?: "A apărut o eroare"
-                    } finally {
-                        isLoading = false
                     }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty() && (!isRegisterMode || (firstName.isNotEmpty() && lastName.isNotEmpty()))
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(if (isRegisterMode) "Înregistrare" else "Conectare")
                 }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty() && (!isRegisterMode || (firstName.isNotEmpty() && lastName.isNotEmpty()))
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-            } else {
-                Text(if (isRegisterMode) "Înregistrare" else "Conectare")
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(onClick = { isRegisterMode = !isRegisterMode }, enabled = !isLoading) {
-            Text(if (isRegisterMode) "Ai deja un cont? Conectează-te" else "Nu ai cont? Înregistrează-te")
+            TextButton(onClick = { isRegisterMode = !isRegisterMode }, enabled = !isLoading) {
+                Text(if (isRegisterMode) "Ai deja un cont? Conectează-te" else "Nu ai cont? Înregistrează-te")
+            }
         }
     }
 }

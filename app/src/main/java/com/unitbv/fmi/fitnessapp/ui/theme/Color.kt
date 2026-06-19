@@ -2,10 +2,18 @@ package com.unitbv.fmi.fitnessapp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Naturist green palette
+val ForestGreen = Color(0xFF2E6F40)
+val OliveGreen = Color(0xFF5D7A68)
+val SageGreen = Color(0xFF8DA98F)
+val LightSage = Color(0xFFC8D6C8)
+val MintGreen = Color(0xFFE8F5E9)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val WarmWhite = Color(0xFFFAFBF4)
+val SandCream = Color(0xFFF4EDE2)
+val DarkPine = Color(0xFF132B1F)
+
+// Theme mapping
+val GreenPrimary = ForestGreen
+val GreenSecondary = OliveGreen
+val GreenTertiary = SageGreen
