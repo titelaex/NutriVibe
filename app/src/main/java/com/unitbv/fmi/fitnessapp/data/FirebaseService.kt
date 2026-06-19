@@ -19,35 +19,45 @@ object FirebaseService {
         android.util.Log.d("FirebaseService", "Attempting to save profile for: $userId")
         
         try {
-            // Încercăm să salvăm pe server cu un timeout mai scurt (4 secunde)
-            withTimeout(4000) {
+            // Încercăm să salvăm pe server cu un timeout scurt (3 secunde)
+            withTimeout(3000) {
                 db.collection("users").document(userId).set(stats).await()
             }
             android.util.Log.d("FirebaseService", "Firestore: Profil salvat cu succes pe server")
         } catch (e: Exception) {
-            // Dacă expiră sau nu este internet, Firestore salvează local automat în cache-ul offline și va sincroniza mai târziu.
-            // Executăm apelul asincron (fără await) pentru a nu bloca utilizatorul și a-i permite să treacă la Dashboard.
-            android.util.Log.w("FirebaseService", "Firestore: Salvare pe server blocată sau timeout, se salvează local în offline cache: ${e.message}")
+            // Dacă expiră sau nu e internet, se salvează local în cache-ul offline
+            // și va fi sincronizat automat în fundal când revine conexiunea.
+            android.util.Log.w("FirebaseService", "Firestore: Salvare locală asincronă în cache din cauza conexiunii lente/lipsă.")
             db.collection("users").document(userId).set(stats)
         }
     }
 
     suspend fun getUserProfile(): UserStats? {
         val userId = getCurrentUserId() ?: return null
+        
+        // 1. Încercăm mai întâi din cache-ul local pentru încărcare instantanee (0-10ms)
+        try {
+            val cachedDoc = db.collection("users").document(userId).get(Source.CACHE).await()
+            if (cachedDoc.exists()) {
+                val stats = cachedDoc.toObject(UserStats::class.java)
+                if (stats != null) {
+                    android.util.Log.d("FirebaseService", "Firestore: Profil încărcat instant din CACHE local")
+                    return stats
+                }
+            }
+        } catch (e: Exception) {
+            // Profilul nu este în cache, trecem la citirea de pe server
+        }
+
+        // 2. Dacă nu este în cache, citim de pe server (timeout 3s)
         return try {
-            withTimeout(4000) {
-                val doc = db.collection("users").document(userId).get().await()
+            withTimeout(3000) {
+                val doc = db.collection("users").document(userId).get(Source.SERVER).await()
                 doc.toObject(UserStats::class.java)
             }
         } catch (e: Exception) {
-            android.util.Log.w("FirebaseService", "Firestore: Nu s-a putut citi de pe server, se încearcă din offline cache...")
-            try {
-                val doc = db.collection("users").document(userId).get(Source.CACHE).await()
-                doc.toObject(UserStats::class.java)
-            } catch (cacheEx: Exception) {
-                android.util.Log.e("FirebaseService", "Firestore: Nici local cache nu e disponibil", cacheEx)
-                null
-            }
+            android.util.Log.w("FirebaseService", "Firestore: Nu s-a putut lua de pe server (timeout/offline), returnăm null.")
+            null
         }
     }
 
@@ -58,11 +68,11 @@ object FirebaseService {
     suspend fun saveMeal(meal: Meal) {
         val userId = getCurrentUserId() ?: throw Exception("Utilizator neautentificat")
         try {
-            withTimeout(4000) {
+            withTimeout(3000) {
                 db.collection("users").document(userId).collection("meals").add(meal).await()
             }
         } catch (e: Exception) {
-            android.util.Log.w("FirebaseService", "Firestore: Eroare la salvarea mesei online, salvăm în offline cache: ${e.message}")
+            android.util.Log.w("FirebaseService", "Firestore: Adăugare masă asincronă în cache local.")
             db.collection("users").document(userId).collection("meals").add(meal)
         }
     }
@@ -75,23 +85,30 @@ object FirebaseService {
         calendar.set(java.util.Calendar.SECOND, 0)
         val startOfDay = com.google.firebase.Timestamp(calendar.time)
         
+        // 1. Încercăm din cache-ul local pentru viteza maximă (0-10ms)
+        try {
+            val cachedSnapshot = db.collection("users").document(userId).collection("meals")
+                .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                .get(Source.CACHE).await()
+            if (!cachedSnapshot.isEmpty) {
+                android.util.Log.d("FirebaseService", "Firestore: Mese încărcate instant din CACHE local")
+                return cachedSnapshot.toObjects(Meal::class.java)
+            }
+        } catch (e: Exception) {
+            // Nu sunt în cache, trecem la server
+        }
+
+        // 2. Citim de pe server
         return try {
-            withTimeout(4000) {
+            withTimeout(3000) {
                 val snapshot = db.collection("users").document(userId).collection("meals")
                     .whereGreaterThanOrEqualTo("timestamp", startOfDay)
-                    .get().await()
+                    .get(Source.SERVER).await()
                 snapshot.toObjects(Meal::class.java)
             }
         } catch (e: Exception) {
-            android.util.Log.w("FirebaseService", "Firestore: Eroare la citirea meselor de pe server, se încearcă din cache...")
-            try {
-                val snapshot = db.collection("users").document(userId).collection("meals")
-                    .whereGreaterThanOrEqualTo("timestamp", startOfDay)
-                    .get(Source.CACHE).await()
-                snapshot.toObjects(Meal::class.java)
-            } catch (cacheEx: Exception) {
-                emptyList()
-            }
+            android.util.Log.w("FirebaseService", "Firestore: Nu s-au putut încărca mesele de pe server (timeout/offline).")
+            emptyList()
         }
     }
 }

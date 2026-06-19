@@ -22,13 +22,24 @@ fun DashboardScreen() {
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        scope.launch {
+        val jobStats = scope.launch {
             try {
                 userStats = FirebaseService.getUserProfile()
-                meals = FirebaseService.getTodaysMeals()
-            } finally {
-                isLoading = false
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardScreen", "Error loading stats", e)
             }
+        }
+        val jobMeals = scope.launch {
+            try {
+                meals = FirebaseService.getTodaysMeals()
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardScreen", "Error loading meals", e)
+            }
+        }
+        scope.launch {
+            jobStats.join()
+            jobMeals.join()
+            isLoading = false
         }
     }
 
