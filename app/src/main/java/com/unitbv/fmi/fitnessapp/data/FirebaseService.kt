@@ -53,11 +53,15 @@ object FirebaseService {
         return try {
             withTimeout(3000) {
                 val doc = db.collection("users").document(userId).get(Source.SERVER).await()
-                doc.toObject(UserStats::class.java)
+                if (doc.exists()) {
+                    doc.toObject(UserStats::class.java)
+                } else {
+                    null
+                }
             }
         } catch (e: Exception) {
-            android.util.Log.w("FirebaseService", "Firestore: Nu s-a putut lua de pe server (timeout/offline), returnăm null.")
-            null
+            android.util.Log.w("FirebaseService", "Firestore: Nu s-a putut lua de pe server (timeout/offline), propagăm excepția.")
+            throw e
         }
     }
 
@@ -83,6 +87,7 @@ object FirebaseService {
         calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
         calendar.set(java.util.Calendar.MINUTE, 0)
         calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
         val startOfDay = com.google.firebase.Timestamp(calendar.time)
         
         // 1. Încercăm din cache-ul local pentru viteza maximă (0-10ms)

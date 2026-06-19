@@ -362,10 +362,14 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     android.util.Log.d("Onboarding", "Starting profile save...")
                     try {
                         FirebaseService.saveUserProfile(stats)
-                        
+
+                        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
                         val prefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+                        if (userId != null) {
+                            prefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()
+                        }
                         prefs.edit().putBoolean("isFirstTimeUser", false).apply()
-                        
+
                         android.util.Log.d("Onboarding", "Save complete, navigating...")
                         onFinish()
                     } catch (e: Exception) {

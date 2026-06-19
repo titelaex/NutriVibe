@@ -10,7 +10,7 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
 
     companion object {
         private const val DATABASE_NAME = "nutrivibe_local.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
 
         const val TABLE_RECIPES = "recipes"
         const val COLUMN_ID = "id"
@@ -22,6 +22,7 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
         const val COLUMN_CATEGORY = "category"
         const val COLUMN_PREP_TIME = "prep_time"
         const val COLUMN_INSTRUCTIONS = "instructions"
+        const val COLUMN_DIFFICULTY = "difficulty"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -35,7 +36,8 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
                 $COLUMN_FATS INTEGER,
                 $COLUMN_CATEGORY TEXT,
                 $COLUMN_PREP_TIME INTEGER,
-                $COLUMN_INSTRUCTIONS TEXT
+                $COLUMN_INSTRUCTIONS TEXT,
+                $COLUMN_DIFFICULTY TEXT
             )
         """.trimIndent()
         db.execSQL(createTable)
@@ -58,6 +60,7 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
             put(COLUMN_CATEGORY, recipe.category)
             put(COLUMN_PREP_TIME, recipe.prepTime)
             put(COLUMN_INSTRUCTIONS, recipe.instructions)
+            put(COLUMN_DIFFICULTY, recipe.difficulty)
         }
         db.insertWithOnConflict(TABLE_RECIPES, null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -77,6 +80,7 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
                 val category = getString(getColumnIndexOrThrow(COLUMN_CATEGORY))
                 val prepTime = getInt(getColumnIndexOrThrow(COLUMN_PREP_TIME))
                 val instructions = getString(getColumnIndexOrThrow(COLUMN_INSTRUCTIONS))
+                val difficulty = getString(getColumnIndexOrThrow(COLUMN_DIFFICULTY))
 
                 list.add(
                     Recipe(
@@ -89,7 +93,7 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
                         category = category,
                         ingredients = emptyList(),
                         instructions = instructions,
-                        difficulty = "Ușor",
+                        difficulty = difficulty,
                         prepTime = prepTime
                     )
                 )

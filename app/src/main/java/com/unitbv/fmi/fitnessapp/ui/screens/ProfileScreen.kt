@@ -35,8 +35,13 @@ fun ProfileScreen(onLogout: () -> Unit) {
     }
 
     LaunchedEffect(Unit) {
-        userStats = FirebaseService.getUserProfile()
-        isLoading = false
+        try {
+            userStats = FirebaseService.getUserProfile()
+        } catch (e: Exception) {
+            android.util.Log.e("ProfileScreen", "Failed to load profile", e)
+        } finally {
+            isLoading = false
+        }
     }
 
     if (isLoading) {

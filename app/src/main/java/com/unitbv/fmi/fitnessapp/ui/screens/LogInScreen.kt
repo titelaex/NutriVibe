@@ -24,6 +24,7 @@ import kotlinx.coroutines.tasks.await
 
 @Composable
 fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit = {}) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var firstName by remember { mutableStateOf("") }
@@ -38,19 +39,30 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
     val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
-        if (auth.currentUser != null) {
-            isLoading = true
-            try {
-                val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
-                if (profile != null) {
-                    onLoginSuccess(false) // Go to Dashboard
-                } else {
-                    onLoginSuccess(true)  // Go to Onboarding
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val userId = currentUser.uid
+            val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+            val hasOnboardedLocal = sharedPrefs.getBoolean("has_completed_onboarding_$userId", false)
+
+            if (hasOnboardedLocal) {
+                onLoginSuccess(false) // Go to Dashboard
+            } else {
+                isLoading = true
+                try {
+                    val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
+                    if (profile != null) {
+                        sharedPrefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()
+                        onLoginSuccess(false) // Go to Dashboard
+                    } else {
+                        onLoginSuccess(true)  // Go to Onboarding
+                    }
+                } catch (e: Exception) {
+                    // Network error / timeout: assume they have a profile (offline mode)
+                    onLoginSuccess(false)
+                } finally {
+                    isLoading = false
                 }
-            } catch (e: Exception) {
-                onLoginSuccess(false)
-            } finally {
-                isLoading = false
             }
         }
     }
@@ -155,10 +167,23 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                                     .setDisplayName("$firstName $lastName")
                                     .build()
                                 result.user?.updateProfile(profileUpdates)?.await()
+                                onLoginSuccess(true)
                             } else {
-                                auth.signInWithEmailAndPassword(email, password).await()
+                                val result = auth.signInWithEmailAndPassword(email, password).await()
+                                val userId = result.user?.uid
+                                val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+                                var hasProfile = false
+                                try {
+                                    val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
+                                    if (profile != null) {
+                                        sharedPrefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()
+                                        hasProfile = true
+                                    }
+                                } catch (e: Exception) {
+                                    hasProfile = true // If network error, default to Dashboard (offline cache)
+                                }
+                                onLoginSuccess(!hasProfile)
                             }
-                            onLoginSuccess(isRegisterMode)
                         } catch (e: Exception) {
                             errorMessage = e.localizedMessage ?: "A apărut o eroare"
                         } finally {
