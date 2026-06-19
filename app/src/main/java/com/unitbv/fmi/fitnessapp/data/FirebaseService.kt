@@ -2,10 +2,10 @@ package com.unitbv.fmi.fitnessapp.data
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import com.unitbv.fmi.fitnessapp.models.UserStats
 import com.unitbv.fmi.fitnessapp.models.Meal
 import kotlinx.coroutines.tasks.await
-
 import kotlinx.coroutines.withTimeout
 
 object FirebaseService {
@@ -19,24 +19,36 @@ object FirebaseService {
         android.util.Log.d("FirebaseService", "Attempting to save profile for: $userId")
         
         try {
-            // Timeout de 10 secunde pentru a nu râmâne blocat la infinit
-            withTimeout(10000) {
+            // Încercăm să salvăm pe server cu un timeout mai scurt (4 secunde)
+            withTimeout(4000) {
                 db.collection("users").document(userId).set(stats).await()
             }
-            android.util.Log.d("FirebaseService", "Firestore: Salvare reușită")
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            android.util.Log.e("FirebaseService", "Firestore: Timeout depășit (10s)")
-            throw Exception("Conexiunea la server a expirat. Verifică internetul.")
+            android.util.Log.d("FirebaseService", "Firestore: Profil salvat cu succes pe server")
         } catch (e: Exception) {
-            android.util.Log.e("FirebaseService", "Firestore: Eroare la salvare - ${e.message}")
-            throw e
+            // Dacă expiră sau nu este internet, Firestore salvează local automat în cache-ul offline și va sincroniza mai târziu.
+            // Executăm apelul asincron (fără await) pentru a nu bloca utilizatorul și a-i permite să treacă la Dashboard.
+            android.util.Log.w("FirebaseService", "Firestore: Salvare pe server blocată sau timeout, se salvează local în offline cache: ${e.message}")
+            db.collection("users").document(userId).set(stats)
         }
     }
 
     suspend fun getUserProfile(): UserStats? {
         val userId = getCurrentUserId() ?: return null
-        val doc = db.collection("users").document(userId).get().await()
-        return doc.toObject(UserStats::class.java)
+        return try {
+            withTimeout(4000) {
+                val doc = db.collection("users").document(userId).get().await()
+                doc.toObject(UserStats::class.java)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("FirebaseService", "Firestore: Nu s-a putut citi de pe server, se încearcă din offline cache...")
+            try {
+                val doc = db.collection("users").document(userId).get(Source.CACHE).await()
+                doc.toObject(UserStats::class.java)
+            } catch (cacheEx: Exception) {
+                android.util.Log.e("FirebaseService", "Firestore: Nici local cache nu e disponibil", cacheEx)
+                null
+            }
+        }
     }
 
     fun signOut() {
@@ -45,7 +57,14 @@ object FirebaseService {
 
     suspend fun saveMeal(meal: Meal) {
         val userId = getCurrentUserId() ?: throw Exception("Utilizator neautentificat")
-        db.collection("users").document(userId).collection("meals").add(meal).await()
+        try {
+            withTimeout(4000) {
+                db.collection("users").document(userId).collection("meals").add(meal).await()
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("FirebaseService", "Firestore: Eroare la salvarea mesei online, salvăm în offline cache: ${e.message}")
+            db.collection("users").document(userId).collection("meals").add(meal)
+        }
     }
 
     suspend fun getTodaysMeals(): List<Meal> {
@@ -56,12 +75,23 @@ object FirebaseService {
         calendar.set(java.util.Calendar.SECOND, 0)
         val startOfDay = com.google.firebase.Timestamp(calendar.time)
         
-        val snapshot = db.collection("users").document(userId).collection("meals")
-            .whereGreaterThanOrEqualTo("timestamp", startOfDay)
-            .get().await()
-        
-        return snapshot.toObjects(Meal::class.java)
+        return try {
+            withTimeout(4000) {
+                val snapshot = db.collection("users").document(userId).collection("meals")
+                    .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                    .get().await()
+                snapshot.toObjects(Meal::class.java)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("FirebaseService", "Firestore: Eroare la citirea meselor de pe server, se încearcă din cache...")
+            try {
+                val snapshot = db.collection("users").document(userId).collection("meals")
+                    .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                    .get(Source.CACHE).await()
+                snapshot.toObjects(Meal::class.java)
+            } catch (cacheEx: Exception) {
+                emptyList()
+            }
+        }
     }
-    
-    // Additional methods for meals, recipes, etc. will go here
 }
