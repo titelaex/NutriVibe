@@ -100,4 +100,23 @@ object FirebaseService {
             emptyList()
         }
     }
+
+    suspend fun saveCommunityRecipe(recipe: com.unitbv.fmi.fitnessapp.models.Recipe) {
+        try {
+            db.collection("community_recipes").document(recipe.id).set(recipe).await()
+            android.util.Log.d("FirebaseService", "Firestore: Rețeta a fost salvată pe server")
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseService", "Firestore: Eroare la adăugare rețetă", e)
+        }
+    }
+
+    suspend fun getCommunityRecipes(): List<com.unitbv.fmi.fitnessapp.models.Recipe> {
+        return try {
+            val snapshot = db.collection("community_recipes").get().await()
+            snapshot.toObjects(com.unitbv.fmi.fitnessapp.models.Recipe::class.java)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseService", "Firestore: Eroare la citirea rețetelor comunității", e)
+            emptyList()
+        }
+    }
 }

@@ -1,7 +1,9 @@
 package com.unitbv.fmi.fitnessapp.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -158,8 +160,34 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                         }
                     )
                     
-                    Spacer(modifier = Modifier.height(32.dp))
-                    
+                    if (!isRegisterMode) {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                            TextButton(
+                                onClick = {
+                                    if (email.isBlank()) {
+                                        errorMessage = "Introdu adresa de email pentru a-ți putea reseta parola."
+                                    } else {
+                                        isLoading = true
+                                        auth.sendPasswordResetEmail(email)
+                                            .addOnCompleteListener { task ->
+                                                isLoading = false
+                                                if (task.isSuccessful) {
+                                                    Toast.makeText(context, "Email-ul de resetare a fost trimis! Verifică inbox-ul.", Toast.LENGTH_LONG).show()
+                                                } else {
+                                                    errorMessage = "Eroare: ${task.exception?.localizedMessage}"
+                                                }
+                                            }
+                                    }
+                                },
+                                enabled = !isLoading
+                            ) {
+                                Text("Ai uitat parola?", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    } else {
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
                     Button(
                         onClick = {
                             scope.launch {

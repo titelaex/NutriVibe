@@ -114,6 +114,9 @@ fun MainNavigation() {
             composable(Screen.Recipes.route) {
                 RecipesScreen()
             }
+            composable(Screen.Workouts.route) {
+                WorkoutsScreen()
+            }
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onLogout = {

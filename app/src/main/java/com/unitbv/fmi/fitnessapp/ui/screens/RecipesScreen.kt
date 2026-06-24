@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.unitbv.fmi.fitnessapp.data.HttpHelper
 import com.unitbv.fmi.fitnessapp.data.LocalDbHelper
+import com.unitbv.fmi.fitnessapp.data.FirebaseService
 import com.unitbv.fmi.fitnessapp.models.Recipe
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -57,72 +59,20 @@ fun RecipesScreen() {
         scope.launch {
             isLoading = true
             try {
-                val response1 = HttpHelper.fetchUrl(
-                    "https://ro.openfoodfacts.org/cgi/search.pl?search_terms=bio&json=true&page_size=5"
-                )
-                val response2 = HttpHelper.fetchUrl(
-                    "https://ro.openfoodfacts.org/cgi/search.pl?search_terms=fructe&json=true&page_size=5"
-                )
+                // Am scos clearRecipes() pentru a nu șterge rețetele hardcodate (fallback-ul românesc)
+                // Datele noi din Firestore se vor adăuga peste cele existente.
+                
+                val serverRecipes = FirebaseService.getCommunityRecipes()
 
-                var parsedCount = 0
-
-                val parseAndStore = { responseStr: String? ->
-                    if (!responseStr.isNullOrBlank()) {
-                        val jsonObject = JSONObject(responseStr)
-                        val products = jsonObject.optJSONArray("products")
-                        if (products != null) {
-                            for (i in 0 until products.length()) {
-                                val prod = products.getJSONObject(i)
-                                val id = prod.optString("code", prod.optString("_id", java.util.UUID.randomUUID().toString()))
-                                val name = prod.optString("product_name", prod.optString("product_name_ro", ""))
-                                
-                                if (name.isBlank() || name == "null") continue
-                                
-                                val nutriments = prod.optJSONObject("nutriments")
-                                val calories = nutriments?.optDouble("energy-kcal_100g", 0.0)?.toInt() ?: 0
-                                val protein = nutriments?.optDouble("proteins_100g", 0.0)?.toInt() ?: 0
-                                val carbs = nutriments?.optDouble("carbohydrates_100g", 0.0)?.toInt() ?: 0
-                                val fats = nutriments?.optDouble("fat_100g", 0.0)?.toInt() ?: 0
-                                
-                                val brand = prod.optString("brands", "Bio")
-                                val category = when {
-                                    name.contains("mic dejun", ignoreCase = true) || name.contains("cereale", ignoreCase = true) || name.contains("iaurt", ignoreCase = true) -> "Mic dejun"
-                                    name.contains("pranz", ignoreCase = true) || name.contains("supa", ignoreCase = true) || name.contains("orez", ignoreCase = true) || name.contains("paste", ignoreCase = true) -> "Prânz"
-                                    name.contains("cina", ignoreCase = true) || name.contains("salata", ignoreCase = true) || name.contains("legume", ignoreCase = true) -> "Cină"
-                                    else -> "Snacks"
-                                }
-                                
-                                val ingredients = prod.optString("ingredients_text", "Ingrediente naturale, de calitate.")
-                                val instructions = "Brand: $brand\nIngrediente: $ingredients"
-                                
-                                val recipe = Recipe(
-                                    id = id,
-                                    name = name,
-                                    calories = calories,
-                                    protein = protein,
-                                    carbs = carbs,
-                                    fats = fats,
-                                    category = category,
-                                    ingredients = emptyList(),
-                                    instructions = instructions,
-                                    difficulty = if (calories > 400) "Mediu" else "Ușor",
-                                    prepTime = if (calories > 300) 15 else 5
-                                )
-                                localDb.insertRecipe(recipe)
-                                parsedCount++
-                            }
-                        }
+                if (serverRecipes.isNotEmpty()) {
+                    for (recipe in serverRecipes) {
+                        localDb.insertRecipe(recipe)
                     }
-                }
-
-                parseAndStore(response1)
-                parseAndStore(response2)
-
-                if (parsedCount > 0) {
                     loadRecipesFromDb()
                     Toast.makeText(context, "Meniu actualizat cu succes de pe server!", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "Nu s-au putut încărca date noi din rețea. Se afișează din cache.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Nu s-au găsit rețete noi în rețea. Se afișează cele implicite.", Toast.LENGTH_SHORT).show()
+                    loadRecipesFromDb()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("RecipesScreen", "Sync error", e)
@@ -168,19 +118,34 @@ fun RecipesScreen() {
         recipes.filter { it.category.equals(selectedCategory, ignoreCase = true) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    var showAddRecipeDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddRecipeDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = "Adaugă rețetă")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Ingrediente Bio & Rețete",
@@ -281,6 +246,101 @@ fun RecipesScreen() {
             }
         }
     }
+
+    if (showAddRecipeDialog) {
+        AddRecipeDialog(
+            onDismiss = { showAddRecipeDialog = false },
+            onSave = { newRecipe ->
+                scope.launch {
+                    try {
+                        FirebaseService.saveCommunityRecipe(newRecipe)
+                        Toast.makeText(context, "Rețetă publicată cu succes pe rețea!", Toast.LENGTH_SHORT).show()
+                        showAddRecipeDialog = false
+                        syncRecipesFromNetwork() // Refresh the list
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Eroare la salvarea rețetei", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
+    }
+}
+}
+
+@Composable
+fun AddRecipeDialog(
+    onDismiss: () -> Unit,
+    onSave: (Recipe) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Prânz") }
+    var calories by remember { mutableStateOf("") }
+    var instructions by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Publică o Rețetă Nouă") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nume rețetă") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Categorie (ex: Mic dejun, Prânz, Cină)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = calories,
+                    onValueChange = { calories = it },
+                    label = { Text("Calorii") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = instructions,
+                    onValueChange = { instructions = it },
+                    label = { Text("Mod de preparare scurt") },
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val cal = calories.toIntOrNull() ?: 0
+                    if (name.isNotBlank()) {
+                        val newRecipe = Recipe(
+                            id = java.util.UUID.randomUUID().toString(),
+                            name = name,
+                            calories = cal,
+                            category = category,
+                            instructions = instructions,
+                            difficulty = "Ușor",
+                            prepTime = 10,
+                            protein = 10, carbs = 10, fats = 10
+                        )
+                        onSave(newRecipe)
+                    }
+                }
+            ) {
+                Text("Publică")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Anulează")
+            }
+        }
+    )
 }
 
 @Composable
@@ -324,6 +384,22 @@ fun RecipeCard(recipe: Recipe) {
             }
             
             Spacer(modifier = Modifier.height(8.dp))
+            
+            if (recipe.id.length > 5) {
+                Box(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Publicat de alți utilizatori",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),

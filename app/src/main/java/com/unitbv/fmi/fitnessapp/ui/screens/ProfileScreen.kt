@@ -272,6 +272,30 @@ fun ProfileScreen(onLogout: () -> Unit) {
                             }
                         }
                     }
+                    
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    
+                    ListItem(
+                        headlineContent = { Text("Schimbă parola", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("Trimite link de resetare pe email") },
+                        leadingContent = { Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                        modifier = Modifier.clickable {
+                            val userEmail = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email
+                            if (!userEmail.isNullOrBlank()) {
+                                com.google.firebase.auth.FirebaseAuth.getInstance().sendPasswordResetEmail(userEmail)
+                                    .addOnCompleteListener { task ->
+                                        if (task.isSuccessful) {
+                                            android.widget.Toast.makeText(context, "Link trimis! Verifică email-ul: $userEmail", android.widget.Toast.LENGTH_LONG).show()
+                                        } else {
+                                            android.widget.Toast.makeText(context, "Eroare: ${task.exception?.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                            } else {
+                                android.widget.Toast.makeText(context, "Nu ești logat cu un email valid.", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
                 }
             }
             

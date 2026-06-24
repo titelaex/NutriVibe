@@ -10,7 +10,7 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
 
     companion object {
         private const val DATABASE_NAME = "nutrivibe_local.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
 
         const val TABLE_RECIPES = "recipes"
         const val COLUMN_ID = "id"
@@ -23,6 +23,14 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
         const val COLUMN_PREP_TIME = "prep_time"
         const val COLUMN_INSTRUCTIONS = "instructions"
         const val COLUMN_DIFFICULTY = "difficulty"
+
+        const val TABLE_WORKOUTS = "workouts"
+        const val COLUMN_WORKOUT_ID = "workout_id"
+        const val COLUMN_WORKOUT_NAME = "workout_name"
+        const val COLUMN_WORKOUT_DESC = "workout_desc"
+        const val COLUMN_WORKOUT_CATEGORY = "workout_category"
+        const val COLUMN_WORKOUT_DURATION = "workout_duration"
+        const val COLUMN_WORKOUT_DIFFICULTY = "workout_difficulty"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -41,10 +49,23 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
             )
         """.trimIndent()
         db.execSQL(createTable)
+
+        val createWorkoutsTable = """
+            CREATE TABLE $TABLE_WORKOUTS (
+                $COLUMN_WORKOUT_ID TEXT PRIMARY KEY,
+                $COLUMN_WORKOUT_NAME TEXT,
+                $COLUMN_WORKOUT_DESC TEXT,
+                $COLUMN_WORKOUT_CATEGORY TEXT,
+                $COLUMN_WORKOUT_DURATION INTEGER,
+                $COLUMN_WORKOUT_DIFFICULTY TEXT
+            )
+        """.trimIndent()
+        db.execSQL(createWorkoutsTable)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLE_RECIPES")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_WORKOUTS")
         onCreate(db)
     }
 
@@ -106,5 +127,43 @@ class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
     fun clearRecipes() {
         val db = writableDatabase
         db.delete(TABLE_RECIPES, null, null)
+    }
+
+    fun insertWorkout(workout: com.unitbv.fmi.fitnessapp.models.Workout) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_WORKOUT_ID, workout.id)
+            put(COLUMN_WORKOUT_NAME, workout.name)
+            put(COLUMN_WORKOUT_DESC, workout.description)
+            put(COLUMN_WORKOUT_CATEGORY, workout.category)
+            put(COLUMN_WORKOUT_DURATION, workout.durationMin)
+            put(COLUMN_WORKOUT_DIFFICULTY, workout.difficulty)
+        }
+        db.insertWithOnConflict(TABLE_WORKOUTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun getAllWorkouts(): List<com.unitbv.fmi.fitnessapp.models.Workout> {
+        val list = mutableListOf<com.unitbv.fmi.fitnessapp.models.Workout>()
+        val db = readableDatabase
+        val cursor = db.query(TABLE_WORKOUTS, null, null, null, null, null, null)
+        with(cursor) {
+            while (moveToNext()) {
+                val id = getString(getColumnIndexOrThrow(COLUMN_WORKOUT_ID))
+                val name = getString(getColumnIndexOrThrow(COLUMN_WORKOUT_NAME))
+                val desc = getString(getColumnIndexOrThrow(COLUMN_WORKOUT_DESC))
+                val category = getString(getColumnIndexOrThrow(COLUMN_WORKOUT_CATEGORY))
+                val duration = getInt(getColumnIndexOrThrow(COLUMN_WORKOUT_DURATION))
+                val diff = getString(getColumnIndexOrThrow(COLUMN_WORKOUT_DIFFICULTY))
+                
+                list.add(com.unitbv.fmi.fitnessapp.models.Workout(id, name, desc, category, duration, diff))
+            }
+            close()
+        }
+        return list
+    }
+
+    fun clearWorkouts() {
+        val db = writableDatabase
+        db.delete(TABLE_WORKOUTS, null, null)
     }
 }
