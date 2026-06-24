@@ -357,7 +357,7 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = grams,
-                        onValueChange = { grams = it },
+                        onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) grams = it },
                         label = { Text("Gramaj (g)") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -368,7 +368,7 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
                     )
                     OutlinedTextField(
                         value = calories,
-                        onValueChange = { calories = it },
+                        onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) calories = it },
                         label = { Text("Calorii (kcal)") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -382,7 +382,7 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = protein,
-                        onValueChange = { protein = it },
+                        onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) protein = it },
                         label = { Text("Prot. (g)") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -393,7 +393,7 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
                     )
                     OutlinedTextField(
                         value = carbs,
-                        onValueChange = { carbs = it },
+                        onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) carbs = it },
                         label = { Text("Carb. (g)") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -404,7 +404,7 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
                     )
                     OutlinedTextField(
                         value = fats,
-                        onValueChange = { fats = it },
+                        onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) fats = it },
                         label = { Text("Grăs. (g)") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -462,8 +462,9 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
                     val prot = protein.toIntOrNull() ?: 0
                     val cb = carbs.toIntOrNull() ?: 0
                     val ft = fats.toIntOrNull() ?: 0
-                    onSave(Meal(name = name, grams = gr, calories = cal, protein = prot, carbs = cb, fats = ft, type = type))
+                    onSave(Meal(name = name.ifBlank { "Masă necunoscută" }, grams = gr, calories = cal, protein = prot, carbs = cb, fats = ft, type = type))
                 },
+                enabled = name.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
             ) {
                 Text("Salvează")
