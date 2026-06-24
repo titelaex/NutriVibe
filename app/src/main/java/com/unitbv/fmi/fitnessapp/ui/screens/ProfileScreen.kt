@@ -38,9 +38,6 @@ fun ProfileScreen(onLogout: () -> Unit) {
     var isLoading by remember { mutableStateOf(true) }
     var showEditDialog by remember { mutableStateOf(false) }
 
-    var notificationsEnabled by remember {
-        mutableStateOf(sharedPrefs.getBoolean("notifications_enabled", true))
-    }
     var metricUnits by remember {
         mutableStateOf(sharedPrefs.getString("unit_system", "Metric (kg, cm)") ?: "Metric (kg, cm)")
     }
@@ -156,8 +153,25 @@ fun ProfileScreen(onLogout: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                InfoCard(Modifier.weight(1f), "Greutate", "${userStats?.weight ?: 0f} kg", Icons.Rounded.MonitorWeight, CalorieAmber)
-                InfoCard(Modifier.weight(1f), "Înălțime", "${userStats?.height ?: 0f} cm", Icons.Rounded.Height, CarbsTeal)
+                val isImperial = metricUnits.startsWith("Imperial")
+                
+                val weightVal = userStats?.weight ?: 0f
+                val heightVal = userStats?.height ?: 0f
+                
+                val weightStr = if (isImperial) {
+                    String.format("%.1f lbs", weightVal * 2.20462f)
+                } else {
+                    "$weightVal kg"
+                }
+                
+                val heightStr = if (isImperial) {
+                    String.format("%.1f in", heightVal * 0.393701f)
+                } else {
+                    "$heightVal cm"
+                }
+
+                InfoCard(Modifier.weight(1f), "Greutate", weightStr, Icons.Rounded.MonitorWeight, CalorieAmber)
+                InfoCard(Modifier.weight(1f), "Înălțime", heightStr, Icons.Rounded.Height, CarbsTeal)
                 InfoCard(Modifier.weight(1f), "BMI", String.format("%.1f", userStats?.bmi ?: 0f), Icons.Rounded.Speed, ProteinCoral)
             }
             
@@ -229,24 +243,6 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    ListItem(
-                        headlineContent = { Text("Notificări zilnice") },
-                        leadingContent = { Icon(Icons.Rounded.Notifications, contentDescription = null) },
-                        trailingContent = { 
-                            Switch(
-                                checked = notificationsEnabled, 
-                                onCheckedChange = { isChecked ->
-                                    notificationsEnabled = isChecked
-                                    sharedPrefs.edit().putBoolean("notifications_enabled", isChecked).apply()
-                                },
-                                colors = SwitchDefaults.colors(checkedTrackColor = ForestGreen)
-                            ) 
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
-                    
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    
                     var expandedUnits by remember { mutableStateOf(false) }
                     Box {
                         ListItem(
@@ -607,7 +603,7 @@ fun InfoCard(modifier: Modifier, label: String, value: String, icon: ImageVector
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(

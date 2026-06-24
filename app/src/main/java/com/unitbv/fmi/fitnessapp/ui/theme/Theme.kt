@@ -19,19 +19,19 @@ private val DarkColorScheme = darkColorScheme(
     onPrimaryContainer = LightSage,
     secondary = LightSage,
     onSecondary = DarkPine,
-    secondaryContainer = Color(0xFF1E3A24),
+    secondaryContainer = DarkSurface,
     onSecondaryContainer = MintGreen,
     tertiary = CalorieAmber,
     onTertiary = Color.Black,
     background = DarkPine,
-    onBackground = Color(0xFFE8F0E8),
+    onBackground = Color(0xFFF2FBF4),
     surface = DarkSurface,
-    onSurface = Color(0xFFE8F0E8),
+    onSurface = Color(0xFFF2FBF4),
     surfaceVariant = DarkCard,
-    onSurfaceVariant = Color(0xFFBBC8BC),
+    onSurfaceVariant = Color(0xFFB5C9BE),
     error = ErrorRed,
     onError = Color.White,
-    outline = Color(0xFF3D5C42)
+    outline = Color(0xFF335741)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -41,19 +41,19 @@ private val LightColorScheme = lightColorScheme(
     onPrimaryContainer = ForestGreen,
     secondary = OliveGreen,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFC8E6C9),
+    secondaryContainer = SandCream,
     onSecondaryContainer = ForestGreen,
     tertiary = CalorieAmber,
     onTertiary = Color.White,
     background = WarmWhite,
-    onBackground = Color(0xFF1A1C19),
+    onBackground = Color(0xFF081C15),
     surface = Color.White,
-    onSurface = Color(0xFF1A1C19),
+    onSurface = Color(0xFF081C15),
     surfaceVariant = SandCream,
-    onSurfaceVariant = Color(0xFF43503F),
+    onSurfaceVariant = Color(0xFF3F5A49),
     error = ErrorRed,
     onError = Color.White,
-    outline = Color(0xFF73867A)
+    outline = Color(0xFF759982)
 )
 
 @Composable

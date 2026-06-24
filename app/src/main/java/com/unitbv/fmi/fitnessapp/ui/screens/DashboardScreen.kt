@@ -274,7 +274,7 @@ fun MacroSummaryCard(modifier: Modifier = Modifier, label: String, value: String
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Add
@@ -254,9 +255,10 @@ fun RecipesScreen() {
                 scope.launch {
                     try {
                         FirebaseService.saveCommunityRecipe(newRecipe)
-                        Toast.makeText(context, "Rețetă publicată cu succes pe rețea!", Toast.LENGTH_SHORT).show()
+                        localDb.insertRecipe(newRecipe)
+                        loadRecipesFromDb()
+                        Toast.makeText(context, "Rețetă publicată cu succes!", Toast.LENGTH_SHORT).show()
                         showAddRecipeDialog = false
-                        syncRecipesFromNetwork() // Refresh the list
                     } catch (e: Exception) {
                         Toast.makeText(context, "Eroare la salvarea rețetei", Toast.LENGTH_SHORT).show()
                     }
@@ -289,13 +291,42 @@ fun AddRecipeDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    label = { Text("Categorie (ex: Mic dejun, Prânz, Cină)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Categorie", style = MaterialTheme.typography.labelSmall)
+                    val categories = listOf("Mic dejun", "Prânz", "Cină", "Snacks")
+                    var expandedCategory by remember { mutableStateOf(false) }
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedCard(
+                            onClick = { expandedCategory = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(category)
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = expandedCategory,
+                            onDismissRequest = { expandedCategory = false }
+                        ) {
+                            categories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text(cat) },
+                                    onClick = {
+                                        category = cat
+                                        expandedCategory = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = calories,
                     onValueChange = { calories = it },
