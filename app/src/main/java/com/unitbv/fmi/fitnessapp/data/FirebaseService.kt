@@ -5,6 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
 import com.unitbv.fmi.fitnessapp.models.UserStats
 import com.unitbv.fmi.fitnessapp.models.Meal
+import com.unitbv.fmi.fitnessapp.models.Recipe
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 
@@ -22,31 +23,27 @@ object FirebaseService {
             db.collection("users").document(userId).set(stats).await()
             android.util.Log.d("FirebaseService", "Firestore: Profil salvat cu succes pe server")
         } catch (e: Exception) {
-            android.util.Log.w("FirebaseService", "Firestore: Eroare la salvare pe server, se încearcă salvarea locală în cache.", e)
-            // În caz de eroare (ex: offline), salvăm local în cache.
-            // Firestore va sincroniza automat când revine conexiunea.
+            android.util.Log.w("FirebaseService", "Firestore: Eroare la salvare pe server, se încearca salvare locala in cache.", e)
             db.collection("users").document(userId).set(stats)
         }
     }
 
     suspend fun getUserProfile(): UserStats? {
         val userId = getCurrentUserId() ?: return null
-        
-        // 1. Încercăm mai întâi din cache-ul local pentru încărcare instantanee (0-10ms)
+        //incercam din cache local
         try {
             val cachedDoc = db.collection("users").document(userId).get(Source.CACHE).await()
             if (cachedDoc.exists()) {
                 val stats = cachedDoc.toObject(UserStats::class.java)
                 if (stats != null) {
-                    android.util.Log.d("FirebaseService", "Firestore: Profil încărcat instant din CACHE local")
+                    android.util.Log.d("FirebaseService", "Firestore: Profil incarcat CACHE local")
                     return stats
                 }
             }
         } catch (e: Exception) {
-            // Profilul nu este în cache, trecem la citirea normală
+            // Profilul nu este in cache => cit din firestore
         }
-
-        // 2. Dacă nu este în cache, citim din Firestore
+        //cit din firestore
         return try {
             val doc = db.collection("users").document(userId).get().await()
             if (doc.exists()) {
@@ -71,7 +68,7 @@ object FirebaseService {
         try {
             db.collection("users").document(userId).collection("meals").add(meal).await()
         } catch (e: Exception) {
-            android.util.Log.w("FirebaseService", "Firestore: Adăugare masă asincronă în cache local.")
+            android.util.Log.w("FirebaseService", "Firestore: Adaugare masa cache local")
             db.collection("users").document(userId).collection("meals").add(meal)
         }
     }
@@ -101,7 +98,7 @@ object FirebaseService {
         }
     }
 
-    suspend fun saveCommunityRecipe(recipe: com.unitbv.fmi.fitnessapp.models.Recipe) {
+    suspend fun saveCommunityRecipe(recipe: Recipe) {
         try {
             db.collection("community_recipes").document(recipe.id).set(recipe).await()
             android.util.Log.d("FirebaseService", "Firestore: Rețeta a fost salvată pe server")
@@ -110,10 +107,10 @@ object FirebaseService {
         }
     }
 
-    suspend fun getCommunityRecipes(): List<com.unitbv.fmi.fitnessapp.models.Recipe> {
+    suspend fun getCommunityRecipes(): List<Recipe> {
         return try {
             val snapshot = db.collection("community_recipes").get().await()
-            snapshot.toObjects(com.unitbv.fmi.fitnessapp.models.Recipe::class.java)
+            snapshot.toObjects(Recipe::class.java)
         } catch (e: Exception) {
             android.util.Log.e("FirebaseService", "Firestore: Eroare la citirea rețetelor comunității", e)
             emptyList()

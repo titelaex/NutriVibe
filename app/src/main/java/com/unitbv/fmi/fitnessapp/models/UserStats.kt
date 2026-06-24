@@ -9,14 +9,14 @@ data class UserStats(
     var weight: Float = 0f, // in kg
     var activityLevel: String = "", // "Sedentar", "Ușor activ", "Moderat", "Foarte activ"
     var workoutsPerWeek: Int = 0,
-    var goal: String = "", // "Slăbire", "Menținere", "Creștere masă"
+    var goal: String = "", // "Slabire", "Menținere", "Creștere masa"
     var goalRhythm: Float = 0f, // kg/week (max 1.0)
     var bodyType: String = "", // "Ectomorf", "Mezomorf", "Endomorf"
     var dietaryRestrictions: String = "",
     var allergies: String = "",
     var medicalConditions: String = "",
     
-    // Calculated results
+    // results
     var bmi: Float = 0f,
     var bmr: Int = 0,
     var tdee: Int = 0,
@@ -24,5 +24,7 @@ data class UserStats(
     var proteinGrams: Int = 0,
     var carbGrams: Int = 0,
     var fatGrams: Int = 0,
-    var fiberGrams: Int = 0
+    var fiberGrams: Int = 0,
+    var calorieStreak: Int = 0,
+    var lastStreakDate: String = ""
 )

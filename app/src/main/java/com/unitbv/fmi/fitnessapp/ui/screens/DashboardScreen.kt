@@ -81,6 +81,52 @@ fun DashboardScreen() {
         }
     }
 
+    LaunchedEffect(meals, userStats) {
+        val stats = userStats ?: return@LaunchedEffect
+        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val selectedDateStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(selectedDate)
+        if (todayStr == selectedDateStr) {
+            val totalCal = meals.sumOf { it.calories }
+            val goalCal = stats.dailyCalories
+            val isGoalMet = goalCal > 0 && totalCal >= (goalCal * 0.85).toInt() && totalCal <= (goalCal * 1.15).toInt()
+            
+            val yesterdayCal = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, -1) }
+            val yesterdayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(yesterdayCal.time)
+            
+            var newStreak = stats.calorieStreak
+            var newStreakDate = stats.lastStreakDate
+            var updated = false
+            
+            if (isGoalMet) {
+                if (newStreakDate != todayStr) {
+                    if (newStreakDate == yesterdayStr) {
+                        newStreak += 1
+                    } else {
+                        newStreak = 1
+                    }
+                    newStreakDate = todayStr
+                    updated = true
+                }
+            } else {
+                if (newStreakDate.isNotEmpty() && newStreakDate != todayStr && newStreakDate != yesterdayStr) {
+                    newStreak = 0
+                    newStreakDate = ""
+                    updated = true
+                }
+            }
+            
+            if (updated) {
+                val updatedStats = stats.copy(calorieStreak = newStreak, lastStreakDate = newStreakDate)
+                try {
+                    FirebaseService.saveUserProfile(updatedStats)
+                    userStats = updatedStats
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardScreen", "Failed to update streak", e)
+                }
+            }
+        }
+    }
+
     val consumedCalories = meals.sumOf { it.calories }
     val goalCalories = userStats?.dailyCalories ?: 2000
     val progress = if (goalCalories > 0) consumedCalories.toFloat() / goalCalories else 0f
@@ -114,17 +160,52 @@ fun DashboardScreen() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Buna, ${userStats?.firstName ?: "Utilizator"}!",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Hai sa urmarim progresul de azi",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Buna, ${userStats?.firstName ?: "Utilizator"}!",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Hai sa urmarim progresul de azi",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        
+                        val streak = userStats?.calorieStreak ?: 0
+                        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+                        val isTodayGoalMet = userStats?.lastStreakDate == todayStr
+                        
+                        Surface(
+                            color = (if (isTodayGoalMet) SuccessGreen else Color.Gray).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Eco,
+                                    contentDescription = "Streak",
+                                    tint = if (isTodayGoalMet) SuccessGreen else Color.Gray,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "$streak",
+                                    color = if (isTodayGoalMet) SuccessGreen else Color.Gray,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                     DateSelector(
                         selectedDate = selectedDate,

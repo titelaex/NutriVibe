@@ -137,7 +137,30 @@ fun ProfileScreen(onLogout: () -> Unit) {
                             "Utilizator Nou"
                         }
                         Text(fullName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                        Text(userStats?.gender ?: "Gen nespecificat", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(userStats?.gender ?: "Gen nespecificat", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            val streak = userStats?.calorieStreak ?: 0
+                            if (streak > 0) {
+                                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+                                val isTodayGoalMet = userStats?.lastStreakDate == todayStr
+                                Text(" • ", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(
+                                    imageVector = Icons.Rounded.Eco,
+                                    contentDescription = null,
+                                    tint = if (isTodayGoalMet) SuccessGreen else Color.Gray,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "$streak " + if (streak == 1) "zi" else "zile",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isTodayGoalMet) SuccessGreen else Color.Gray,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }

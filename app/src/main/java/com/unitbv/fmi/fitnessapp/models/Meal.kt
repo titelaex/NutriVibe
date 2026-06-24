@@ -10,6 +10,6 @@ data class Meal(
     var protein: Int = 0,
     var carbs: Int = 0,
     var fats: Int = 0,
-    var type: String = "Mic Dejun", // Mic Dejun, Pranz, Cina, Gustare
+    var type: String = "Mic Dejun",
     var timestamp: Timestamp = Timestamp.now()
 )
