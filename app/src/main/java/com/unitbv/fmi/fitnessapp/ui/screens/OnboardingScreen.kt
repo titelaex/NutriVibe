@@ -57,13 +57,10 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
     // D. Somatotype
     var bodyType by remember { mutableStateOf("Ectomorf") }
     
-    // E. Medical
-    var medicalConditions by remember { mutableStateOf("") }
-    
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val progress = currentStep / 5f
+    val progress = currentStep / 4f
 
     Column(
         modifier = Modifier
@@ -102,7 +99,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Pasul $currentStep din 5",
+                text = "Pasul $currentStep din 4",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.End)
@@ -272,16 +269,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                     }
                 }
             }
-            5 -> {
-                // Section E: Medical (Opțional)
-                SectionCard(title = "E. Profil Medical (Opțional)", icon = Icons.Rounded.LocalHospital) {
-                    OutlinedTextField(
-                        value = medicalConditions, onValueChange = { medicalConditions = it }, 
-                        label = { Text("Alergii sau afecțiuni (ex: diabet, alergie nuci)") },
-                        modifier = Modifier.fillMaxWidth(), minLines = 2
-                    )
-                }
-            }
+
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -360,8 +348,6 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                         }
                         currentStep = 4
                     } else if (currentStep == 4) {
-                        currentStep = 5
-                    } else if (currentStep == 5) {
                         // Submit logic (finish onboarding)
                         scope.launch {
                             isLoading = true
@@ -392,7 +378,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                                     activityLevel = activityLevel,
                                     goal = goal,
                                     bodyType = bodyType,
-                                    medicalConditions = medicalConditions
+                                    medicalConditions = ""
                                 )
                                 
                                 val finalStats = FitnessCalculator.calculateMacros(baseStats)
@@ -423,7 +409,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    if (currentStep == 5) {
+                    if (currentStep == 4) {
                         Icon(Icons.Filled.CheckCircle, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Creează Planul", style = MaterialTheme.typography.titleMedium)
