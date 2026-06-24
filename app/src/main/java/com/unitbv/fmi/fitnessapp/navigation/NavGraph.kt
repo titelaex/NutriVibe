@@ -76,23 +76,34 @@ fun MainNavigation() {
             composable(Screen.Login.route) {
                 LogInScreen(
                     onLoginSuccess = { isRegister ->
-                        if (isRegister) {
-                            navController.navigate(Screen.Onboarding.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
-                            }
-                        } else {
-                            navController.navigate(Screen.Dashboard.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
-                            }
+                        navController.navigate(Screen.Dashboard.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    },
+                    onRegister = { email, password ->
+                        val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                        val encodedPassword = java.net.URLEncoder.encode(password, "UTF-8")
+                        navController.navigate("onboarding/$encodedEmail/$encodedPassword") {
+                            popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
                 )
             }
-            composable(Screen.Onboarding.route) {
+            composable(
+                "onboarding/{email}/{password}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("email") { type = androidx.navigation.NavType.StringType },
+                    androidx.navigation.navArgument("password") { type = androidx.navigation.NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val email = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("email") ?: "", "UTF-8")
+                val password = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("password") ?: "", "UTF-8")
                 OnboardingScreen(
+                    email = email,
+                    password = password,
                     onFinish = {
                         navController.navigate(Screen.Dashboard.route) {
-                            popUpTo(Screen.Onboarding.route) { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 )

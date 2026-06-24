@@ -3,13 +3,13 @@ package com.unitbv.fmi.fitnessapp.models
 import com.google.firebase.Timestamp
 
 data class Meal(
-    val id: String = "",
-    val name: String = "",
-    val grams: Int = 0,
-    val calories: Int = 0,
-    val protein: Int = 0,
-    val carbs: Int = 0,
-    val fats: Int = 0,
-    val type: String = "Mic Dejun", // Mic Dejun, Pranz, Cina, Gustare
-    val timestamp: Timestamp = Timestamp.now()
+    var id: String = "",
+    var name: String = "",
+    var grams: Int = 0,
+    var calories: Int = 0,
+    var protein: Int = 0,
+    var carbs: Int = 0,
+    var fats: Int = 0,
+    var type: String = "Mic Dejun", // Mic Dejun, Pranz, Cina, Gustare
+    var timestamp: Timestamp = Timestamp.now()
 )

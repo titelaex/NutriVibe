@@ -28,18 +28,21 @@ import com.unitbv.fmi.fitnessapp.data.FirebaseService
 import com.unitbv.fmi.fitnessapp.models.UserStats
 import com.unitbv.fmi.fitnessapp.logic.FitnessCalculator
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import com.unitbv.fmi.fitnessapp.ui.theme.*
 
 @Composable
-fun OnboardingScreen(onFinish: () -> Unit) {
+fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
     var currentStep by remember { mutableIntStateOf(1) }
     
     // A. Biometrics
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf("Bărbat") }
+    var gender by remember { mutableStateOf("Masculin") }
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
     
@@ -128,33 +131,46 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             1 -> {
                 // Section A: Date Biometrice
                 SectionCard(title = "A. Date Biometrice", icon = Icons.Rounded.Straighten) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = firstName, onValueChange = { firstName = it }, label = { Text("Prenume") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = lastName, onValueChange = { lastName = it }, label = { Text("Nume") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Surface(
-                            modifier = Modifier.weight(1f).clickable { gender = "Bărbat" },
+                            modifier = Modifier.weight(1f).clickable { gender = "Masculin" },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (gender == "Bărbat") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                            border = if (gender == "Bărbat") BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                            color = if (gender == "Masculin") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (gender == "Masculin") BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                Icon(Icons.Rounded.Male, contentDescription = null, tint = if (gender == "Bărbat") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(Icons.Rounded.Male, contentDescription = null, tint = if (gender == "Masculin") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Bărbat", color = if (gender == "Bărbat") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                                Text("Bărbat", color = if (gender == "Masculin") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                             }
                         }
                         Surface(
-                            modifier = Modifier.weight(1f).clickable { gender = "Femeie" },
+                            modifier = Modifier.weight(1f).clickable { gender = "Feminin" },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (gender == "Femeie") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                            border = if (gender == "Femeie") BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                            color = if (gender == "Feminin") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (gender == "Feminin") BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                Icon(Icons.Rounded.Female, contentDescription = null, tint = if (gender == "Femeie") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(Icons.Rounded.Female, contentDescription = null, tint = if (gender == "Feminin") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Femeie", color = if (gender == "Femeie") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                                Text("Femeie", color = if (gender == "Feminin") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = age, onValueChange = { age = it }, label = { Text("Vârsta (ani)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -298,6 +314,14 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     
                     // Validate current step before proceeding or finishing
                     if (currentStep == 1) {
+                        if (firstName.isBlank()) {
+                            errorMessage = "Te rugăm să introduci prenumele."
+                            return@Button
+                        }
+                        if (lastName.isBlank()) {
+                            errorMessage = "Te rugăm să introduci numele."
+                            return@Button
+                        }
                         val ageVal = age.toIntOrNull()
                         val heightVal = height.toFloatOrNull()
                         val weightVal = weight.toFloatOrNull()
@@ -343,17 +367,24 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                             isLoading = true
                             errorMessage = null
                             try {
+                                // 1. Creăm contul Firebase (sau ne logăm dacă există deja)
+                                if (email.isNotEmpty() && password.isNotEmpty()) {
+                                    val auth = FirebaseAuth.getInstance()
+                                    try {
+                                        auth.createUserWithEmailAndPassword(email, password).await()
+                                    } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                                        // Contul există deja, ne logăm
+                                        auth.signInWithEmailAndPassword(email, password).await()
+                                    }
+                                }
+                                
                                 val a = age.toInt()
                                 val h = height.toFloat()
                                 val w = weight.toFloat()
                                 
-                                val userProfile = FirebaseAuth.getInstance().currentUser
-                                val fName = userProfile?.displayName?.split(" ")?.firstOrNull() ?: ""
-                                val lName = userProfile?.displayName?.split(" ")?.drop(1)?.joinToString(" ") ?: ""
-
                                 val baseStats = UserStats(
-                                    firstName = fName,
-                                    lastName = lName,
+                                    firstName = firstName.trim(),
+                                    lastName = lastName.trim(),
                                     age = a,
                                     gender = gender,
                                     weight = w,
@@ -366,9 +397,10 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                                 
                                 val finalStats = FitnessCalculator.calculateMacros(baseStats)
                                 
+                                // 2. Salvăm profilul (contul există deja)
                                 FirebaseService.saveUserProfile(finalStats)
                                 
-                                val userId = userProfile?.uid
+                                val userId = FirebaseAuth.getInstance().currentUser?.uid
                                 if (userId != null) {
                                     val sharedPrefs = context.getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
                                     sharedPrefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()

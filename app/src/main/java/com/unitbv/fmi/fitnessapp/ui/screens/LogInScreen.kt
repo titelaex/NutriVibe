@@ -32,12 +32,10 @@ import kotlinx.coroutines.tasks.await
 import com.unitbv.fmi.fitnessapp.ui.theme.*
 
 @Composable
-fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit = {}) {
+fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit = {}, onRegister: (String, String) -> Unit = { _, _ -> }) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
     
     var isRegisterMode by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -123,37 +121,7 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                         }
                     }
 
-                    AnimatedVisibility(
-                        visible = isRegisterMode,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        Column {
-                            OutlinedTextField(
-                                value = firstName,
-                                onValueChange = { firstName = it },
-                                label = { Text("Prenume") },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                enabled = !isLoading
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            OutlinedTextField(
-                                value = lastName,
-                                onValueChange = { lastName = it },
-                                label = { Text("Nume") },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                enabled = !isLoading
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
+
 
                     OutlinedTextField(
                         value = email,
@@ -199,13 +167,12 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                                 errorMessage = null
                                 try {
                                     if (isRegisterMode) {
-                                        val result = auth.createUserWithEmailAndPassword(email, password).await()
-                                        val profileUpdates = UserProfileChangeRequest.Builder()
-                                            .setDisplayName("$firstName $lastName")
-                                            .build()
-                                        result.user?.updateProfile(profileUpdates)?.await()
-                                        onLoginSuccess(true)
-                                    } else {
+                                        // Nu creăm contul aici — doar validăm și trimitem la onboarding
+                                        if (password.length < 6) {
+                                            errorMessage = "Parola trebuie să aibă cel puțin 6 caractere."
+                                        } else {
+                                            onRegister(email, password)
+                                        }} else {
                                         val result = auth.signInWithEmailAndPassword(email, password).await()
                                         val userId = result.user?.uid
                                         val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
@@ -242,7 +209,7 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-                        enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty() && (!isRegisterMode || (firstName.isNotEmpty() && lastName.isNotEmpty()))
+                        enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty()
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
