@@ -49,32 +49,7 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
     val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            val userId = currentUser.uid
-            val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
-            val hasOnboardedLocal = sharedPrefs.getBoolean("has_completed_onboarding_$userId", false)
-
-            if (hasOnboardedLocal) {
-                onLoginSuccess(false) // Go to Dashboard
-            } else {
-                isLoading = true
-                try {
-                    val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
-                    if (profile != null) {
-                        sharedPrefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()
-                        onLoginSuccess(false) // Go to Dashboard
-                    } else {
-                        onLoginSuccess(true)  // Go to Onboarding
-                    }
-                } catch (e: Exception) {
-                    // Network error / timeout: assume they have a profile (offline mode)
-                    onLoginSuccess(false)
-                } finally {
-                    isLoading = false
-                }
-            }
-        }
+        auth.signOut() // Deconectare forțată la deschiderea aplicației
     }
 
     if (isLoading && auth.currentUser != null && email.isEmpty() && password.isEmpty()) {
@@ -234,17 +209,26 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                                         val result = auth.signInWithEmailAndPassword(email, password).await()
                                         val userId = result.user?.uid
                                         val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
-                                        var hasProfile = false
-                                        try {
-                                            val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
-                                            if (profile != null) {
-                                                sharedPrefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()
+                                        val hasOnboardedLocal = sharedPrefs.getBoolean("has_completed_onboarding_$userId", false)
+                                        
+                                        if (hasOnboardedLocal) {
+                                            // Deja a completat onboarding-ul înainte, trimite la Dashboard
+                                            onLoginSuccess(false)
+                                        } else {
+                                            // Verificăm pe server dacă are profil
+                                            var hasProfile = false
+                                            try {
+                                                val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
+                                                if (profile != null) {
+                                                    sharedPrefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()
+                                                    hasProfile = true
+                                                }
+                                            } catch (e: Exception) {
+                                                // Eroare de rețea → presupunem că are profil (mai bine Dashboard gol decât onboarding repetat)
                                                 hasProfile = true
                                             }
-                                        } catch (e: Exception) {
-                                            hasProfile = true // If network error, default to Dashboard (offline cache)
+                                            onLoginSuccess(!hasProfile)
                                         }
-                                        onLoginSuccess(!hasProfile)
                                     }
                                 } catch (e: Exception) {
                                     errorMessage = e.localizedMessage ?: "A apărut o eroare"

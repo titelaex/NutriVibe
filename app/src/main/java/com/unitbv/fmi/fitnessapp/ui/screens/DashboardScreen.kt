@@ -1,7 +1,10 @@
 package com.unitbv.fmi.fitnessapp.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,25 +36,48 @@ fun DashboardScreen() {
     var showAddMealDialog by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        val jobStats = scope.launch {
-            try {
-                userStats = FirebaseService.getUserProfile()
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardScreen", "Error loading stats", e)
+    var selectedDate by remember { mutableStateOf(java.util.Date()) }
+    val dates = remember {
+        val list = mutableListOf<java.util.Date>()
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -6)
+        for (i in 0..6) {
+            list.add(cal.time)
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        list
+    }
+
+    LaunchedEffect(selectedDate) {
+        try {
+            meals = FirebaseService.getMealsForDate(selectedDate)
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardScreen", "Error loading meals for date", e)
+        }
+    }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                scope.launch {
+                    try {
+                        userStats = FirebaseService.getUserProfile()
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardScreen", "Error loading stats", e)
+                    }
+                    try {
+                        meals = FirebaseService.getMealsForDate(selectedDate)
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardScreen", "Error loading meals", e)
+                    }
+                    isLoading = false
+                }
             }
         }
-        val jobMeals = scope.launch {
-            try {
-                meals = FirebaseService.getTodaysMeals()
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardScreen", "Error loading meals", e)
-            }
-        }
-        scope.launch {
-            jobStats.join()
-            jobMeals.join()
-            isLoading = false
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -99,7 +125,13 @@ fun DashboardScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    DateSelector(
+                        selectedDate = selectedDate,
+                        dates = dates,
+                        onDateSelected = { selectedDate = it }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
                 
                 item {
@@ -217,8 +249,16 @@ fun DashboardScreen() {
             onDismiss = { showAddMealDialog = false },
             onSave = { meal ->
                 scope.launch {
-                    FirebaseService.saveMeal(meal)
-                    meals = FirebaseService.getTodaysMeals()
+                    val calendar = java.util.Calendar.getInstance()
+                    val nowCal = java.util.Calendar.getInstance()
+                    calendar.time = selectedDate
+                    calendar.set(java.util.Calendar.HOUR_OF_DAY, nowCal.get(java.util.Calendar.HOUR_OF_DAY))
+                    calendar.set(java.util.Calendar.MINUTE, nowCal.get(java.util.Calendar.MINUTE))
+                    calendar.set(java.util.Calendar.SECOND, nowCal.get(java.util.Calendar.SECOND))
+                    
+                    val timestampedMeal = meal.copy(timestamp = com.google.firebase.Timestamp(calendar.time))
+                    FirebaseService.saveMeal(timestampedMeal)
+                    meals = FirebaseService.getMealsForDate(selectedDate)
                     showAddMealDialog = false
                 }
             }
@@ -278,7 +318,11 @@ fun MealItem(meal: Meal) {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(meal.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(meal.type, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = "${meal.type} • ${meal.grams}g • P: ${meal.protein}g C: ${meal.carbs}g G: ${meal.fats}g",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Text("${meal.calories} kcal", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         }
@@ -289,7 +333,11 @@ fun MealItem(meal: Meal) {
 @Composable
 fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
     var name by remember { mutableStateOf("") }
+    var grams by remember { mutableStateOf("") }
     var calories by remember { mutableStateOf("") }
+    var protein by remember { mutableStateOf("") }
+    var carbs by remember { mutableStateOf("") }
+    var fats by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("Prânz") }
     val mealTypes = listOf("Mic Dejun", "Prânz", "Cină", "Gustare")
 
@@ -305,13 +353,67 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
-                OutlinedTextField(
-                    value = calories, 
-                    onValueChange = { calories = it }, 
-                    label = { Text("Calorii") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = grams,
+                        onValueChange = { grams = it },
+                        label = { Text("Gramaj (g)") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = calories,
+                        onValueChange = { calories = it },
+                        label = { Text("Calorii (kcal)") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = protein,
+                        onValueChange = { protein = it },
+                        label = { Text("Prot. (g)") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = carbs,
+                        onValueChange = { carbs = it },
+                        label = { Text("Carb. (g)") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = fats,
+                        onValueChange = { fats = it },
+                        label = { Text("Grăs. (g)") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                }
                 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Tip Masă", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -355,8 +457,12 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
         confirmButton = {
             Button(
                 onClick = {
+                    val gr = grams.toIntOrNull() ?: 0
                     val cal = calories.toIntOrNull() ?: 0
-                    onSave(Meal(name = name, calories = cal, type = type))
+                    val prot = protein.toIntOrNull() ?: 0
+                    val cb = carbs.toIntOrNull() ?: 0
+                    val ft = fats.toIntOrNull() ?: 0
+                    onSave(Meal(name = name, grams = gr, calories = cal, protein = prot, carbs = cb, fats = ft, type = type))
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
             ) {
@@ -371,4 +477,64 @@ fun AddMealDialog(onDismiss: () -> Unit, onSave: (Meal) -> Unit) {
         shape = RoundedCornerShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surface
     )
+}
+
+@Composable
+fun DateSelector(
+    selectedDate: java.util.Date,
+    dates: List<java.util.Date>,
+    onDateSelected: (java.util.Date) -> Unit
+) {
+    val sdfDayName = java.text.SimpleDateFormat("EEE", java.util.Locale("ro"))
+    val sdfDayNum = java.text.SimpleDateFormat("d", java.util.Locale("ro"))
+    
+    val selectedCal = java.util.Calendar.getInstance().apply { time = selectedDate }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        dates.forEach { date ->
+            val dateCal = java.util.Calendar.getInstance().apply { time = date }
+            val isSelected = dateCal.get(java.util.Calendar.DAY_OF_YEAR) == selectedCal.get(java.util.Calendar.DAY_OF_YEAR) &&
+                    dateCal.get(java.util.Calendar.YEAR) == selectedCal.get(java.util.Calendar.YEAR)
+            
+            val isToday = dateCal.get(java.util.Calendar.DAY_OF_YEAR) == java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR) &&
+                    dateCal.get(java.util.Calendar.YEAR) == java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            
+            val dayName = sdfDayName.format(date).replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }
+            val dayNum = sdfDayNum.format(date)
+            
+            Card(
+                modifier = Modifier
+                    .width(44.dp)
+                    .clickable { onDateSelected(date) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isSelected) ForestGreen else if (isToday) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = if (isToday && !isSelected) BorderStroke(1.dp, ForestGreen) else null
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = dayName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = dayNum,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
 }
