@@ -372,7 +372,6 @@ fun EditProfileDialog(
     var activityLevel by remember { mutableStateOf(userStats.activityLevel.ifBlank { "Moderat" }) }
     var goal by remember { mutableStateOf(userStats.goal.ifBlank { "Menținere" }) }
     var bodyType by remember { mutableStateOf(userStats.bodyType.ifBlank { "Mezomorf" }) }
-    var medicalConditions by remember { mutableStateOf(userStats.medicalConditions) }
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -551,13 +550,6 @@ fun EditProfileDialog(
                     }
                 }
 
-                OutlinedTextField(
-                    value = medicalConditions,
-                    onValueChange = { medicalConditions = it },
-                    label = { Text("Condiții medicale / Alergii (Opțional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
             }
         },
         confirmButton = {
@@ -594,7 +586,7 @@ fun EditProfileDialog(
                         activityLevel = activityLevel,
                         goal = goal,
                         bodyType = bodyType,
-                        medicalConditions = medicalConditions
+                        medicalConditions = ""
                     )
                     
                     val finalStats = com.unitbv.fmi.fitnessapp.logic.FitnessCalculator.calculateMacros(updatedStats)
