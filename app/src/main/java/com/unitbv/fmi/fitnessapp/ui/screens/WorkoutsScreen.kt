@@ -46,6 +46,12 @@ fun WorkoutsScreen() {
     var isLoading by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
+    val calendar = remember { java.util.Calendar.getInstance() }
+    val todayFormatted = remember {
+        java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale.forLanguageTag("ro-RO")).format(calendar.time)
+    }
+    val subtitle = "Program personalizat pentru $todayFormatted"
+
     val loadWorkoutsFromDb = {
         workouts = localDb.getAllWorkouts()
     }
@@ -58,14 +64,9 @@ fun WorkoutsScreen() {
         scope.launch {
             isLoading = true
             try {
-                localDb.clearWorkouts()
-                
-                // Folosim Postman Echo pentru a injecta și returna JSON cu Antrenamentul Zilei
-                // Așa ne asigurăm că facem cereri HTTP valide și primim date curate, în română!
-                
-                // Cerință Barem: HTTP request 1 (Antrenamentul complet)
+                // Cerință Barem: HTTP request 1 (Baza de date publică de exerciții de pe GitHub)
                 val response1 = HttpHelper.fetchUrl(
-                    "https://postman-echo.com/get?e1=Flotări|4|15|Piept&e2=Tracțiuni|3|10|Spate&e3=Genuflexiuni|4|20|Picioare&e4=Planșă|3|60s|Abdomen"
+                    "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
                 )
                 
                 // Cerință Barem: HTTP request 2 (Citatul Zilei - adus live de pe alt API)
@@ -85,43 +86,91 @@ fun WorkoutsScreen() {
 
                 var parsedCount = 0
 
-                val parseAndStore = { responseStr: String? ->
-                    if (!responseStr.isNullOrBlank()) {
-                        val jsonObject = JSONObject(responseStr)
-                        val args = jsonObject.optJSONObject("args")
-                        if (args != null) {
-                            val iter = args.keys()
-                            while (iter.hasNext()) {
-                                val key = iter.next()
-                                val valString = args.optString(key)
-                                val parts = valString.split("|")
-                                if (parts.size == 4) {
-                                    val name = parts[0]
-                                    val sets = parts[1]
-                                    val reps = parts[2]
-                                    val category = parts[3]
-                                    
-                                    val workout = Workout(
-                                        id = key,
-                                        name = name,
-                                        description = "$sets seturi x $reps repetări",
-                                        category = category,
-                                        durationMin = 10,
-                                        difficulty = "Mediu"
-                                    )
-                                    localDb.insertWorkout(workout)
-                                    parsedCount++
+                if (!response1.isNullOrBlank()) {
+                    localDb.clearWorkouts() // Ștergem vechile antrenamente doar dacă am primit date noi
+                    
+                    val jsonArray = org.json.JSONArray(response1)
+                    val len = jsonArray.length()
+                    if (len > 0) {
+                        val randomIndices = mutableSetOf<Int>()
+                        val rand = java.util.Random()
+                        val targetSize = minOf(4, len)
+                        
+                        while (randomIndices.size < targetSize) {
+                            randomIndices.add(rand.nextInt(len))
+                        }
+                        
+                        for (index in randomIndices) {
+                            val item = jsonArray.getJSONObject(index)
+                            val id = item.optString("id", java.util.UUID.randomUUID().toString())
+                            val name = item.optString("name", "Exercise")
+                            val category = item.optString("category", "strength")
+                            val level = item.optString("level", "beginner")
+                            
+                            val instructionsArray = item.optJSONArray("instructions")
+                            val instructionsList = mutableListOf<String>()
+                            if (instructionsArray != null) {
+                                for (i in 0 until instructionsArray.length()) {
+                                    instructionsList.add(instructionsArray.optString(i))
                                 }
                             }
+                            
+                            // Generăm număr de seturi și repetări (sau durată pentru cardio/stretching)
+                            val sets = (3..5).random()
+                            val reps = listOf(8, 10, 12, 15).random()
+                            val repsText = if (category.lowercase().contains("stretch") || category.lowercase().contains("yoga") || category.lowercase().contains("cardio")) {
+                                listOf("30s", "45s", "60s").random()
+                            } else {
+                                "$reps reps"
+                            }
+                            val setsRepsPrefix = "$sets sets x $repsText"
+                            
+                            val rawInstruction = if (instructionsList.isNotEmpty()) {
+                                instructionsList.first()
+                            } else {
+                                "No description available."
+                            }
+                            val cleanInstruction = if (rawInstruction.length > 100) {
+                                rawInstruction.substring(0, 97) + "..."
+                            } else {
+                                rawInstruction
+                            }
+                            
+                            val description = "$setsRepsPrefix | $cleanInstruction"
+                            
+                            val difficulty = when (level.lowercase()) {
+                                "beginner" -> "Beginner"
+                                "intermediate" -> "Intermediate"
+                                "expert" -> "Expert"
+                                else -> "Intermediate"
+                            }
+                            
+                            val durationMin = when (difficulty) {
+                                "Beginner" -> 10
+                                "Intermediate" -> 15
+                                else -> 20
+                            }
+                            
+                            val workout = Workout(
+                                id = id,
+                                name = name,
+                                description = description,
+                                category = category.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.forLanguageTag("ro-RO")) else it.toString() },
+                                durationMin = durationMin,
+                                difficulty = difficulty
+                            )
+                            localDb.insertWorkout(workout)
+                            parsedCount++
                         }
                     }
                 }
 
-                parseAndStore(response1)
-
                 if (parsedCount > 0) {
+                    val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                    val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+                    sharedPrefs.edit().putString("last_workout_sync_date", todayStr).apply()
                     loadWorkoutsFromDb()
-                    Toast.makeText(context, "Exerciții actualizate de pe rețea!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Antrenament generat de pe rețea!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "Nu s-au putut prelua exercițiile. Se afișează din cache.", Toast.LENGTH_SHORT).show()
                     loadWorkoutsFromDb()
@@ -138,8 +187,12 @@ fun WorkoutsScreen() {
     }
 
     LaunchedEffect(Unit) {
+        val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+        val lastSyncDate = sharedPrefs.getString("last_workout_sync_date", "")
+        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        
         loadWorkoutsFromDb()
-        if (localDb.getAllWorkouts().isEmpty()) {
+        if (workouts.isEmpty() || lastSyncDate != todayStr) {
             syncWorkoutsFromNetwork()
         }
     }
@@ -168,7 +221,7 @@ fun WorkoutsScreen() {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Full Body Workout - Urmează lista!",
+                        text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -307,12 +360,16 @@ fun WorkoutCard(workout: Workout) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
+                
+                // Despărțim numărul de seturi din stocare
+                val parts = workout.description.split(" | ")
+                val setsReps = parts.getOrNull(0) ?: "3 sets x 12 reps"
+                
                 Text(
-                    text = workout.description.ifBlank { "Fără descriere." },
+                    text = setsReps,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
             
