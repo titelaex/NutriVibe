@@ -38,7 +38,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
     
     var currentStep by remember { mutableIntStateOf(1) }
     
-    // A. Biometrics
+    // Biometrics
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -46,15 +46,15 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
     
-    // B. Lifestyle
+    //  Lifestyle
     var activityLevel by remember { mutableStateOf("Sedentar") }
     
-    // C. Goals
+    //  Goals
     var goal by remember { mutableStateOf("Menținere") }
     var targetWeight by remember { mutableStateOf("") }
     var targetTimeframeWeeks by remember { mutableFloatStateOf(4f) }
     
-    // D. Somatotype
+    //  Somatotype
     var bodyType by remember { mutableStateOf("Ectomorf") }
     
     var isLoading by remember { mutableStateOf(false) }
@@ -126,7 +126,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
         // Conditionally render steps
         when (currentStep) {
             1 -> {
-                // Section A: Date Biometrice
+                // Date Biometrice
                 SectionCard(title = "A. Date Biometrice", icon = Icons.Rounded.Straighten) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedTextField(
@@ -192,7 +192,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                 }
             }
             2 -> {
-                // Section B: Stil de Viață
+                //Stil de Viața
                 SectionCard(title = "B. Stil de Viață", icon = Icons.Rounded.DirectionsRun) {
                     Text("Nivel de activitate fizică:", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -215,7 +215,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                 }
             }
             3 -> {
-                // Section C: Obiective
+                // Obiective
                 SectionCard(title = "C. Obiective", icon = Icons.Rounded.Flag) {
                     Text("Care este scopul tău principal?", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -248,7 +248,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                 }
             }
             4 -> {
-                // Section D: Somatotip
+                // Somatotip
                 SectionCard(title = "D. Evaluare Corp", icon = Icons.Rounded.Accessibility) {
                     Text("Alege tipul tău corporal:", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -296,11 +296,9 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                 }
             }
 
-            Button(
+            Button( // de inainte
                 onClick = {
                     errorMessage = null
-                    
-                    // Validate current step before proceeding or finishing
                     if (currentStep == 1) {
                         if (firstName.isBlank()) {
                             errorMessage = "Te rugăm să introduci prenumele."
@@ -348,18 +346,18 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                         }
                         currentStep = 4
                     } else if (currentStep == 4) {
-                        // Submit logic (finish onboarding)
+                        // Submit logic
                         scope.launch {
                             isLoading = true
                             errorMessage = null
                             try {
-                                // 1. Creăm contul Firebase (sau ne logăm dacă există deja)
+                                // Cream contul Firebase (sau ne logăm dacă există deja)
                                 if (email.isNotEmpty() && password.isNotEmpty()) {
                                     val auth = FirebaseAuth.getInstance()
                                     try {
                                         auth.createUserWithEmailAndPassword(email, password).await()
                                     } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
-                                        // Contul există deja, ne logăm
+                                        // Contul exista deja, ne logam
                                         auth.signInWithEmailAndPassword(email, password).await()
                                     }
                                 }
@@ -383,7 +381,7 @@ fun OnboardingScreen(email: String = "", password: String = "", onFinish: () -> 
                                 
                                 val finalStats = FitnessCalculator.calculateMacros(baseStats)
                                 
-                                // 2. Salvăm profilul (contul există deja)
+                                // save profilul (contul exista deja)
                                 FirebaseService.saveUserProfile(finalStats)
                                 
                                 val userId = FirebaseAuth.getInstance().currentUser?.uid

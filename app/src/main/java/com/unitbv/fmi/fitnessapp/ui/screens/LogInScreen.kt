@@ -151,8 +151,6 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                         }
                     }
 
-
-
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -223,7 +221,7 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                                 errorMessage = null
                                 try {
                                     if (isRegisterMode) {
-                                        // Nu creăm contul aici — doar validăm și trimitem la onboarding
+                                        // Nu cream contul aici — doar validăm si trimitem la onboarding
                                         if (password.length < 6) {
                                             errorMessage = "Parola trebuie să aibă cel puțin 6 caractere."
                                         } else {
@@ -235,10 +233,10 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                                         val hasOnboardedLocal = sharedPrefs.getBoolean("has_completed_onboarding_$userId", false)
                                         
                                         if (hasOnboardedLocal) {
-                                            // Deja a completat onboarding-ul înainte, trimite la Dashboard
+                                            // Deja a completat onboarding-ul, trm la Dashboard
                                             onLoginSuccess(false)
                                         } else {
-                                            // Verificăm pe server dacă are profil
+                                            // Verificam pe server daca are profil
                                             var hasProfile = false
                                             try {
                                                 val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
@@ -247,14 +245,14 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
                                                     hasProfile = true
                                                 }
                                             } catch (e: Exception) {
-                                                // Eroare de rețea → presupunem că are profil (mai bine Dashboard gol decât onboarding repetat)
+                                                // Eroare de rețea → pp că are profil (mai bine Dashboard gol decat onboarding repetat)
                                                 hasProfile = true
                                             }
                                             onLoginSuccess(!hasProfile)
                                         }
                                     }
                                 } catch (e: Exception) {
-                                    errorMessage = e.localizedMessage ?: "A apărut o eroare"
+                                    errorMessage = e.localizedMessage ?: "A apăut o eroare"
                                 } finally {
                                     isLoading = false
                                 }

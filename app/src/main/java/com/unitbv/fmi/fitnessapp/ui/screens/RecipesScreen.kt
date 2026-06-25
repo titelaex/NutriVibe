@@ -55,16 +55,12 @@ fun RecipesScreen() {
         recipes = localDb.getAllRecipes()
     }
 
-    // Network request and DB saving function
+    // Network request and DB saving
     val syncRecipesFromNetwork = {
         scope.launch {
             isLoading = true
             try {
-                // Am scos clearRecipes() pentru a nu șterge rețetele hardcodate (fallback-ul românesc)
-                // Datele noi din Firestore se vor adăuga peste cele existente.
-                
                 val serverRecipes = FirebaseService.getCommunityRecipes()
-
                 if (serverRecipes.isNotEmpty()) {
                     for (recipe in serverRecipes) {
                         localDb.insertRecipe(recipe)
@@ -88,7 +84,6 @@ fun RecipesScreen() {
     LaunchedEffect(Unit) {
         loadRecipesFromDb()
         if (localDb.getAllRecipes().isEmpty()) {
-            // Seed DB with high quality Romanian recipes
             val defaultRecipes = listOf(
                 Recipe(id = "r1", name = "Omletă cu spanac și brânză", calories = 320, protein = 24, carbs = 5, fats = 22, category = "Mic dejun", ingredients = emptyList(), instructions = "Bate ouăle, adaugă spanacul și brânza. Gătește la foc mic 5 minute.", difficulty = "Ușor", prepTime = 10),
                 Recipe(id = "r2", name = "Ovăz cu fructe de pădure", calories = 280, protein = 8, carbs = 45, fats = 6, category = "Mic dejun", ingredients = emptyList(), instructions = "Fierbe ovăzul în lapte. Adaugă fructele de pădure proaspete deasupra.", difficulty = "Ușor", prepTime = 5),
@@ -107,8 +102,8 @@ fun RecipesScreen() {
                 Recipe(id = "r12", name = "Smoothie verde cu spanac", calories = 150, protein = 4, carbs = 30, fats = 1, category = "Snacks", ingredients = emptyList(), instructions = "Blendează spanac, banană, măr și apă.", difficulty = "Ușor", prepTime = 5)
             )
             defaultRecipes.forEach { localDb.insertRecipe(it) }
-            
-            // Sync extra products from API
+
+            // Sync extra products
             syncRecipesFromNetwork()
         }
     }

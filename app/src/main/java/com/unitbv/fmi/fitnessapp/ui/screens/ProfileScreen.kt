@@ -27,6 +27,8 @@ import com.unitbv.fmi.fitnessapp.data.FirebaseService
 import com.unitbv.fmi.fitnessapp.models.UserStats
 import kotlinx.coroutines.launch
 import com.unitbv.fmi.fitnessapp.ui.theme.*
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 
 @Composable
 fun ProfileScreen(onLogout: () -> Unit) {
@@ -42,24 +44,15 @@ fun ProfileScreen(onLogout: () -> Unit) {
         mutableStateOf(sharedPrefs.getString("unit_system", "Metric (kg, cm)") ?: "Metric (kg, cm)")
     }
 
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                scope.launch {
-                    try {
-                        userStats = FirebaseService.getUserProfile()
-                    } catch (e: Exception) {
-                        android.util.Log.e("ProfileScreen", "Failed to load profile", e)
-                    } finally {
-                        isLoading = false
-                    }
-                }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        scope.launch {
+            try {
+                userStats = FirebaseService.getUserProfile()
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileScreen", "Failed to load profile", e)
+            } finally {
+                isLoading = false
             }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
