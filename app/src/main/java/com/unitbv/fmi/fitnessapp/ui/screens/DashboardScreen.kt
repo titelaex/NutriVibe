@@ -27,6 +27,8 @@ import com.unitbv.fmi.fitnessapp.models.Meal
 import com.unitbv.fmi.fitnessapp.models.UserStats
 import kotlinx.coroutines.launch
 import com.unitbv.fmi.fitnessapp.ui.theme.*
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 
 @Composable
 fun DashboardScreen() {
@@ -48,6 +50,7 @@ fun DashboardScreen() {
         list
     }
 
+    //cand se schimba data sel
     LaunchedEffect(selectedDate) {
         try {
             meals = FirebaseService.getMealsForDate(selectedDate)
@@ -56,31 +59,24 @@ fun DashboardScreen() {
         }
     }
 
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                scope.launch {
-                    try {
-                        userStats = FirebaseService.getUserProfile()
-                    } catch (e: Exception) {
-                        android.util.Log.e("DashboardScreen", "Error loading stats", e)
-                    }
-                    try {
-                        meals = FirebaseService.getMealsForDate(selectedDate)
-                    } catch (e: Exception) {
-                        android.util.Log.e("DashboardScreen", "Error loading meals", e)
-                    }
-                    isLoading = false
-                }
+    //la ev android
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        scope.launch {
+            try {
+                userStats = FirebaseService.getUserProfile()
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardScreen", "Error loading stats", e)
             }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+            try {
+                meals = FirebaseService.getMealsForDate(selectedDate)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardScreen", "Error loading meals", e)
+            }
+            isLoading = false
         }
     }
 
+    //streak
     LaunchedEffect(meals, userStats) {
         val stats = userStats ?: return@LaunchedEffect
         val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
@@ -127,6 +123,7 @@ fun DashboardScreen() {
         }
     }
 
+    //procente de progres
     val consumedCalories = meals.sumOf { it.calories }
     val goalCalories = userStats?.dailyCalories ?: 2000
     val progress = if (goalCalories > 0) consumedCalories.toFloat() / goalCalories else 0f
