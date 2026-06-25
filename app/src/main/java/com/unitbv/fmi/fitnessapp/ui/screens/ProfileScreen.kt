@@ -1,4 +1,4 @@
-package com.unitbv.fmi.fitnessapp.ui.screens
+ package com.unitbv.fmi.fitnessapp.ui.screens
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
