@@ -59,18 +59,15 @@ fun WorkoutsScreen() {
     var quoteOfTheDay by remember { mutableStateOf("") }
     var quoteAuthor by remember { mutableStateOf("") }
 
-    // Aici se bifează cerința cu cele "2 cereri HTTP" și parsarea JSON-ului (descărcăm de la o bază de date reală de antrenamente)
     val syncWorkoutsFromNetwork = {
         scope.launch {
             isLoading = true
             try {
-                // Cerință Barem: HTTP request 1 (Baza de date publică de exerciții de pe GitHub)
                 val response1 = HttpHelper.fetchUrl(
 
                     "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
                 )
-                
-                // Cerință Barem: HTTP request 2 (Citatul Zilei - adus live de pe alt API)
+
                 val quoteResponse = HttpHelper.fetchUrl(
                     "https://dummyjson.com/quotes/random"
                 )
@@ -88,7 +85,7 @@ fun WorkoutsScreen() {
                 var parsedCount = 0
 
                 if (!response1.isNullOrBlank()) {
-                    localDb.clearWorkouts() // Ștergem vechile antrenamente doar dacă am primit date noi
+                    localDb.clearWorkouts()
                     
                     val jsonArray = org.json.JSONArray(response1)
                     val len = jsonArray.length()
@@ -116,7 +113,6 @@ fun WorkoutsScreen() {
                                 }
                             }
                             
-                            // Generăm număr de seturi și repetări (sau durată pentru cardio/stretching)
                             val sets = (3..5).random()
                             val reps = listOf(8, 10, 12, 15).random()
                             val repsText = if (category.lowercase().contains("stretch") || category.lowercase().contains("yoga") || category.lowercase().contains("cardio")) {
@@ -361,8 +357,7 @@ fun WorkoutCard(workout: Workout) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                
-                // Despărțim numărul de seturi din stocare
+
                 val parts = workout.description.split(" | ")
                 val setsReps = parts.getOrNull(0) ?: "3 sets x 12 reps"
                 
