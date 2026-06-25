@@ -66,6 +66,7 @@ fun WorkoutsScreen() {
             try {
                 // Cerință Barem: HTTP request 1 (Baza de date publică de exerciții de pe GitHub)
                 val response1 = HttpHelper.fetchUrl(
+
                     "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
                 )
                 
