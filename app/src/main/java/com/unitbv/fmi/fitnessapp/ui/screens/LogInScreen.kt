@@ -49,7 +49,35 @@ fun LogInScreen(modifier: Modifier = Modifier, onLoginSuccess: (Boolean) -> Unit
     val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
-        auth.signOut() // Deconectare forțată la deschiderea aplicației
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            isLoading = true
+            try {
+                val userId = currentUser.uid
+                val sharedPrefs = context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+                val hasOnboardedLocal = sharedPrefs.getBoolean("has_completed_onboarding_$userId", false)
+                
+                if (hasOnboardedLocal) {
+                    onLoginSuccess(false)
+                } else {
+                    var hasProfile = false
+                    try {
+                        val profile = com.unitbv.fmi.fitnessapp.data.FirebaseService.getUserProfile()
+                        if (profile != null) {
+                            sharedPrefs.edit().putBoolean("has_completed_onboarding_$userId", true).apply()
+                            hasProfile = true
+                        }
+                    } catch (e: Exception) {
+                        hasProfile = true
+                    }
+                    onLoginSuccess(!hasProfile)
+                }
+            } catch (e: Exception) {
+                errorMessage = e.localizedMessage ?: "Eroare la verificarea sesiunii"
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
     if (isLoading && auth.currentUser != null && email.isEmpty() && password.isEmpty()) {
